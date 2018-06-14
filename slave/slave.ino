@@ -14,7 +14,7 @@ CRGB leds[NUM_LEDS];
 
 // Settings
 #define NUM_SETTINGS 3
-uint8_t setting = 1;
+byte setting = 2;
 
 // Controls
 ClickEncoder encoder(A1, A0, A2, 4);
@@ -25,16 +25,12 @@ uint8_t buttonState;
 uint8_t wheelValue = 0;
 #define WHEEL_DELTA 8
 
-void timerIsr() {
-  encoder.service();
-}
-
 unsigned long sStartMillis;  //some global variables available anywhere in the program
 unsigned long sCurrentMillis;
-unsigned int period = 100;
+unsigned int period = 5;
 
 void setup() {
-  Serial.begin(9600);
+  Serial.begin(115200);
   Serial.println("Slave is here");
 
   // Setup LEDs
@@ -47,12 +43,16 @@ void setup() {
   Wire.onReceive(onData);
 
   // Setup rotary encoder
-  encoder.setAccelerationEnabled(false);
+  encoder.setAccelerationEnabled(true);
   Timer1.initialize(1000);
   Timer1.attachInterrupt(timerIsr); 
 
   // Start timing
   sStartMillis = millis();
+}
+
+void timerIsr() {
+  encoder.service();
 }
 
 void onData(int numBytes) {
@@ -66,27 +66,22 @@ void onData(int numBytes) {
 void loop() {
   // Read control inputs
   readInputs();
-  /*
-  if(input[1] > 8) {
-    digitalWrite(13, HIGH); 
-  } else {
-    digitalWrite(13, LOW);
-  }
-  */
   
-  int j = NUM_LEDS;
-  while(j--) {
-    leds[j].fadeToBlackBy( 32 );
-  }
-
-  switch(setting) {
-    case 0:
-      setting1();
-      break;
-    case 1:
-      setting2();
-      break;
-  }
+//  sCurrentMillis = millis();
+//  if (sCurrentMillis - sStartMillis >= period) {
+    fadeToBlackBy( leds, NUM_LEDS, 32);
+  
+    switch(setting) {
+      case 0:
+        setting1();
+        break;
+      case 1:
+        setting2();
+        break;
+    }
+    // FastLED.show();
+//    sStartMillis = sCurrentMillis;
+//  }
 }
 
 uint8_t setting1index = 20;
@@ -129,7 +124,7 @@ void setting1() {
   if(input[1] > 8) {
     setting1counter = 0;
     leds[setting1index].setRGB(s1r, s1g, s1b);
-    setting1index = random16(NUM_LEDS);
+    //setting1index = random16(NUM_LEDS);
   }
 
   if(setting1counter < 21) {
@@ -141,7 +136,7 @@ void setting1() {
     leds[getIndex(setting1index, NUM_LEDS, +setting1counter)].setRGB(s1r, s1g, s1b);
   }
 
-  FastLED.show();
+  
 }
 
 void setting2() {
@@ -149,8 +144,6 @@ void setting2() {
     // leds[i].setRGB(255, 0, 0);
     leds[i] = wheel(wheelValue);
   }
-  
-  FastLED.show();
 }
 
 void readInputs() {
@@ -158,13 +151,15 @@ void readInputs() {
   
   if (encoderVal != encoderValLast) {
     if(encoderVal > encoderValLast) {
-      wheelValue = getIndex(wheelValue, 255, WHEEL_DELTA);
+      wheelValue++;
+      wheelValue %= 255;
     } else {
-      wheelValue = getIndex(wheelValue, 255, -WHEEL_DELTA);
+      wheelValue--;
+      if(wheelValue < 0) wheelValue = 255;
     }
     encoderValLast = encoderVal;
-//    Serial.print("Encoder Value: ");
-//    Serial.println(encoderVal);
+    // Serial.print("Encoder Value: ");
+    // Serial.println(encoderVal);
     Serial.print("Wheel Value: ");
     Serial.println(wheelValue);
   }
@@ -191,6 +186,7 @@ void readInputs() {
 
       case ClickEncoder::Clicked:       //5
         setting = (setting + 1) % NUM_SETTINGS;
+        wheelValue = 0;
         resetLEDs();
         break;
 
@@ -207,11 +203,13 @@ void resetLEDs() {
 
 // Utility function to wrap array index
 int getIndex(int current, int maximum, int add) {
+  /*
   Serial.print(current);
   Serial.print(" ");
   Serial.print(maximum);
   Serial.print(" ");
   Serial.println(add);
+  */
   int ret = current+add;
   if(ret < 0) ret += maximum;
   if(ret > maximum) ret -= maximum;
