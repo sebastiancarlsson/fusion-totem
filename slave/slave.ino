@@ -66,64 +66,40 @@ void onData(int numBytes) {
 void loop() {
   // Read control inputs
   readInputs();
-  
-//  sCurrentMillis = millis();
-//  if (sCurrentMillis - sStartMillis >= period) {
-    fadeToBlackBy( leds, NUM_LEDS, 32);
-  
-    switch(setting) {
-      case 0:
-        setting1();
-        break;
-      case 1:
-        setting2();
-        break;
-    }
-    // FastLED.show();
-//    sStartMillis = sCurrentMillis;
-//  }
+
+  // Fade all LEDs
+  fadeToBlackBy( leds, NUM_LEDS, 32);
+
+  // Animate
+  switch(setting) {
+    case 0:
+      setting1();
+      break;
+    case 1:
+      setting2();
+      break;
+  }
+
+  // Update LEDs
+  FastLED.show();
 }
 
 uint8_t setting1index = 20;
 uint8_t setting1counter = 0;
-uint8_t setting1color = 0;
-uint8_t s1r = 0;
-uint8_t s1g = 0;
-uint8_t s1b = 255;
 
 void setting1() {
   /*
   sCurrentMillis = millis();
   if (sCurrentMillis - sStartMillis >= period) {
-    // setting1index = random16(NUM_LEDS);
-    setting1color = (setting1color + 1) % 3;
-
-    switch(setting1color) {
-      case 0:
-        s1r = 0;
-        s1g = 0;
-        s1b = 255;
-        break;
-      case 1:
-        s1r = 255;
-        s1g = 0;
-        s1b = 0;
-        break;
-      case 2:
-        s1r = 0;
-        s1g = 255;
-        s1b = 0;
-        break;
-    }
+    // Do something here
     
-    Serial.println(setting1index);
     sStartMillis = sCurrentMillis;
   }
   */
 
   if(input[1] > 8) {
     setting1counter = 0;
-    leds[setting1index].setRGB(s1r, s1g, s1b);
+    leds[setting1index].setRGB(0, 0, 255);
     //setting1index = random16(NUM_LEDS);
   }
 
@@ -132,8 +108,8 @@ void setting1() {
   }
 
   if(setting1counter <= 20) {
-    leds[getIndex(setting1index, NUM_LEDS, -setting1counter)].setRGB(s1r, s1g, s1b);
-    leds[getIndex(setting1index, NUM_LEDS, +setting1counter)].setRGB(s1r, s1g, s1b);
+    leds[getIndex(setting1index, NUM_LEDS, -setting1counter)].setRGB(0, 0, 255);
+    leds[getIndex(setting1index, NUM_LEDS, +setting1counter)].setRGB(0, 0, 255);
   }
 
   
@@ -185,8 +161,11 @@ void readInputs() {
         break;
 
       case ClickEncoder::Clicked:       //5
+        // Next setting
         setting = (setting + 1) % NUM_SETTINGS;
+        // Reset rotary encoder value
         wheelValue = 0;
+        // Clear LEDs
         resetLEDs();
         break;
 
