@@ -8,51 +8,54 @@ byte input[8];
 
 // LEDs
 #define LED_PIN 8
-#define NUM_LEDS 300
-#define BRIGHTNESS 255
+#define NUM_LEDS 280
+#define NUM_SPOKES 8
+int SPOKE_LENGTH = NUM_LEDS/NUM_SPOKES;
+#define BRIGHTNESS 128
 CRGB leds[NUM_LEDS];
+
+// BPM in milliseconds
+#define BPM_LOW 521 // 115 BPM
+#define BPM_HIGH 461 // 130 BPM
 
 // Settings
 #define NUM_SETTINGS 3
-byte setting = 2;
+byte setting = 0;
 
 // Controls
-ClickEncoder encoder(A1, A0, A2, 4);
-int16_t encoderValLast = -1;
-int16_t encoderVal;
-uint8_t buttonState;
+int wheelVal = 0;
+int maxWheelVal = 4;
 
-uint8_t wheelValue = 0;
-#define WHEEL_DELTA 8
+// Potentiometer
+#define POT_PIN A6
+int potVal = 0;
 
-unsigned long sStartMillis;  //some global variables available anywhere in the program
-unsigned long sCurrentMillis;
-unsigned int period = 5;
+unsigned long startMs;
+unsigned long currentMs;
 
 void setup() {
   Serial.begin(115200);
   Serial.println("Slave is here");
+  Serial.println(SPOKE_LENGTH);
+
+  pinMode(13, OUTPUT);
 
   // Setup LEDs
   FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
   FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
   FastLED.setBrightness(BRIGHTNESS);
 
-  // Setup data receiving
+  // Setup data receiving/sending
   Wire.begin(1);
   Wire.onReceive(onData);
 
   // Setup rotary encoder
-  encoder.setAccelerationEnabled(true);
-  Timer1.initialize(1000);
-  Timer1.attachInterrupt(timerIsr); 
+  pinMode(A0, INPUT);
+  pinMode(A1, INPUT);
+  pinMode(A2, INPUT);
 
   // Start timing
-  sStartMillis = millis();
-}
-
-void timerIsr() {
-  encoder.service();
+  startMs = millis();
 }
 
 void onData(int numBytes) {
@@ -64,19 +67,25 @@ void onData(int numBytes) {
 }
 
 void loop() {
+  if(input[1] > 8) {
+    digitalWrite(13, HIGH);
+  } else {
+    digitalWrite(13, LOW);
+  }
+  
   // Read control inputs
   readInputs();
-
-  // Fade all LEDs
-  fadeToBlackBy( leds, NUM_LEDS, 32);
 
   // Animate
   switch(setting) {
     case 0:
-      setting1();
-      break;
-    case 1:
-      setting2();
+      //WheelAuto();
+      //WheelManual();
+      // Rain();
+      //Snake();
+      Bass();
+      // setting2();
+      // EQ();
       break;
   }
 
@@ -84,94 +93,249 @@ void loop() {
   FastLED.show();
 }
 
-uint8_t setting1index = 20;
+CRGB getColor(int i) {
+  switch(i) {
+    case 0:
+      return CRGB(0, 0, 255);
+      break;
+    case 1:
+      return CRGB(255, 0, 255);
+      break;
+    case 2:
+      return CRGB(255, 0, 0);
+      break;
+    case 3:
+      return CRGB(0, 255, 0);
+      break;
+    case 4:
+      return CRGB(0, 255, 255);
+      break;
+  }
+}
+
+int Wheel_i = 0;
+int Wheel_high = false;
+
+void WheelAuto() {
+  fadeToBlackBy( leds, NUM_LEDS, 16);
+
+  int threshold = map(potVal, 0, 1023, 1, 6);
+
+  CRGB color = getColor(wheelVal);
+
+  currentMs = millis();
+  if(input[1] > 8 && Wheel_high == false && currentMs - startMs >= 200) {
+    Wheel_high == true;
+
+    Wheel_i = (Wheel_i + 1) % NUM_SPOKES;
+    uint8_t x;
+    for(x = 0; x < SPOKE_LENGTH; x++) {
+      leds[Wheel_i*SPOKE_LENGTH + x] = color;
+    }
+    startMs = currentMs;
+  } else if (input[1] < 4 && Wheel_high == true) {
+    Wheel_high == false;
+  }
+  
+  Serial.println(threshold);
+}
+
+void WheelManual() {
+  int period = map(potVal, 0, 1023, 600, 50);
+  int fade = map(potVal, 0, 1023, 16, 64);
+
+  fadeToBlackBy( leds, NUM_LEDS, fade);
+
+  CRGB color = getColor(wheelVal);
+  
+  currentMs = millis();
+  if (currentMs - startMs >= period) {
+    Wheel_i = (Wheel_i + 1) % NUM_SPOKES;
+
+    uint8_t x;
+    for(x = 0; x < SPOKE_LENGTH; x++) {
+      leds[Wheel_i*SPOKE_LENGTH + x] = color;
+    }
+
+    // Serial.println(Wheel_i);
+    // Serial.println(Wheel_i*SPOKE_LENGTH);
+    
+    startMs = currentMs;
+  }
+}
+
+uint8_t drops[8] = {35, 35, 35, 35, 35, 35, 35, 35};
+
+void Rain() {
+  int x;
+  int period = map(potVal, 0, 1023, 15, 50);
+  int fade = map(potVal, 0, 1023, 16, 64);
+  
+  fadeToBlackBy( leds, NUM_LEDS, fade);
+  
+  currentMs = millis();
+  if (currentMs - startMs >= 15) {
+    for(x = 0; x < NUM_SPOKES; x++) {
+      if(drops[x] < 35) {
+        leds[x*SPOKE_LENGTH + drops[x]] = CRGB(0, 0, 128);
+        drops[x]++;
+      }
+    }
+    
+    int spokeIndex = random8(NUM_SPOKES);
+    if(drops[spokeIndex] == 35) {
+      drops[spokeIndex] = random8(SPOKE_LENGTH);
+    }
+    
+    startMs = currentMs;
+  }
+}
+
+void EQ() {
+  uint8_t x, y, i;
+
+  fadeToBlackBy( leds, NUM_LEDS, 64);
+  
+  for(x = 0; x < 8; x++) {
+    y = map(input[x], 0, 10, 0, SPOKE_LENGTH);
+    // if(y > SPOKE_LENGTH) y = SPOKE_LENGTH;
+    for(i = 0; i < y; i++) {
+      leds[i + x * SPOKE_LENGTH].setRGB(0, 0, 255);
+    }
+  }
+}
+
+uint8_t setting1index = 17;
 uint8_t setting1counter = 0;
 
-void setting1() {
-  /*
-  sCurrentMillis = millis();
-  if (sCurrentMillis - sStartMillis >= period) {
-    // Do something here
-    
-    sStartMillis = sCurrentMillis;
-  }
-  */
-
-  if(input[1] > 8) {
-    setting1counter = 0;
-    leds[setting1index].setRGB(0, 0, 255);
-    //setting1index = random16(NUM_LEDS);
-  }
-
-  if(setting1counter < 21) {
-    setting1counter++;
-  }
-
-  if(setting1counter <= 20) {
-    leds[getIndex(setting1index, NUM_LEDS, -setting1counter)].setRGB(0, 0, 255);
-    leds[getIndex(setting1index, NUM_LEDS, +setting1counter)].setRGB(0, 0, 255);
-  }
-
+void Bass() {
+  Serial.println(input[1]);
   
+  fadeToBlackBy( leds, NUM_LEDS, 32);
+
+  // for(int i = 0; i < 5; i++) {
+    if(input[1] > 8) {
+      setting1counter = 0;
+      leds[setting1index].setRGB(0, 0, 255);
+      //setting1index = random16(NUM_LEDS);
+    }
+    
+    if(setting1counter < 17) {
+      setting1counter++;
+      leds[getIndex(setting1index, NUM_LEDS, -setting1counter)].setRGB(0, 0, 255);
+      leds[getIndex(setting1index, NUM_LEDS, +setting1counter)].setRGB(0, 0, 255);
+    }
+  // }
 }
+
+uint16_t s2i = 0;
 
 void setting2() {
-  for(int i = 0; i < input[1]; i++) {
-    // leds[i].setRGB(255, 0, 0);
-    leds[i] = wheel(wheelValue);
+  fadeToBlackBy( leds, NUM_LEDS, 32);
+  
+  currentMs = millis();
+  if (currentMs - startMs >= 2500) {
+    s2i = random8(0, 10);
+    
+    startMs = currentMs;
+  }
+  
+  if(input[1] > 8) {
+    for(int i = s2i; i < NUM_LEDS; i = i+10) {
+      // leds[i].setRGB(255, 0, 0);
+      leds[i] = wheel(wheelVal);
+    }
   }
 }
 
-void readInputs() {
-  encoderVal += encoder.getValue();
+uint16_t Snake_i = 0;
+
+void Snake() {
+  currentMs = millis();
+  int period = map(potVal, 0, 1023, 100, 10);
+  CRGB color;
+  switch(wheelVal) {
+     case 0:
+      color = CRGB(0, 0, 32);
+      break;
+     case 1:
+      color = CRGB(0, 32, 0);
+      break;
+     case 2:
+      color = CRGB(32, 0, 0);
+      break;
+  }
   
-  if (encoderVal != encoderValLast) {
-    if(encoderVal > encoderValLast) {
-      wheelValue++;
-      wheelValue %= 255;
-    } else {
-      wheelValue--;
-      if(wheelValue < 0) wheelValue = 255;
+  if (currentMs - startMs >= period) {
+    FastLED.clear();
+    
+    if(Snake_i == NUM_LEDS) {
+      Snake_i = 0;
     }
-    encoderValLast = encoderVal;
-    // Serial.print("Encoder Value: ");
-    // Serial.println(encoderVal);
-    Serial.print("Wheel Value: ");
-    Serial.println(wheelValue);
+    
+    for(int i = Snake_i; i < Snake_i + NUM_LEDS/2; i++) {
+      leds[i % NUM_LEDS] = color;
+    }
+  
+    Snake_i++;
+
+    startMs = currentMs;
+  }
+}
+
+byte encVal1 = -1;
+byte encVal2 = -1;
+byte buttonVal = 1;
+
+void readInputs() {
+  byte newEncVal1 = digitalRead(A0);
+  byte newEncVal2 = digitalRead(A1);
+  byte newButtonVal = digitalRead(A2);
+  
+  potVal = analogRead(POT_PIN);
+  
+  if(newButtonVal != buttonVal) {
+    if(newButtonVal == HIGH && buttonVal == LOW) {
+      setting = (setting + 1) % NUM_SETTINGS;
+
+      switch(setting) {
+        case 0:
+          maxWheelVal = 4;
+          break;
+        default:
+          maxWheelVal = 0;
+      }
+      
+      // Reset rotary encoder
+      wheelVal = 0;
+      // Reset LEDs
+      resetLEDs();
+
+      Serial.print("Setting");
+      Serial.println(setting);
+    }
+    buttonVal = newButtonVal;
   }
 
-  buttonState = encoder.getButton();
-
-  if (buttonState != 0) {
-    Serial.print("Button: "); Serial.println(buttonState);
-    switch (buttonState) {
-      case ClickEncoder::Open:          //0
-        break;
-
-      case ClickEncoder::Closed:        //1
-        break;
-
-      case ClickEncoder::Pressed:       //2
-        break;
-
-      case ClickEncoder::Held:          //3
-        break;
-
-      case ClickEncoder::Released:      //4
-        break;
-
-      case ClickEncoder::Clicked:       //5
-        // Next setting
-        setting = (setting + 1) % NUM_SETTINGS;
-        // Reset rotary encoder value
-        wheelValue = 0;
-        // Clear LEDs
-        resetLEDs();
-        break;
-
-      case ClickEncoder::DoubleClicked: //6
-        break;
+  // Super simple rotary encoder code
+  if(newEncVal1 != encVal1 || newEncVal2 != encVal2) {
+    if(encVal1 == 1 && newEncVal1 == 1 && encVal2 == 1 && newEncVal2 == 0) {
+      wheelVal--;
+      if(wheelVal < 0) wheelVal = maxWheelVal;
+      
+      Serial.print("Backward ");
+      Serial.println(wheelVal);
     }
+
+    if(encVal1 == 1 && newEncVal1 == 0 && encVal2 == 1 && newEncVal2 == 1) {
+      wheelVal = (wheelVal + 1) % maxWheelVal;
+      
+      Serial.print("Forward ");
+      Serial.println(wheelVal);
+    }
+    
+    encVal1 = newEncVal1;
+    encVal2 = newEncVal2; 
   }
 }
 

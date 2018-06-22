@@ -1,5 +1,4 @@
 #include <Wire.h>
-//#include <FastLED.h>
 #include <ffft.h>
 
 /*
@@ -27,11 +26,6 @@ ffft library is provided under its own terms -- see ffft.S for specifics.
 */
 
 // IMPORTANT: FFT_N should be #defined as 128 in ffft.h.
-
-//#define LED_PIN 8
-//#define NUM_LEDS 64
-//#define BRIGHTNESS 255
-//CRGB leds[NUM_LEDS];
 
 // Microphone connects to Analog Pin 0
 #define ADC_CHANNEL 0
@@ -102,22 +96,18 @@ static const uint8_t PROGMEM
   * const colData[]  = {
     col0data, col1data, col2data, col3data,
     col4data, col5data, col6data, col7data };
-
-unsigned long startMillis;  //some global variables available anywhere in the program
-unsigned long currentMillis;
-const unsigned int period = 50;
-
+/*
+unsigned long potStartMs;
+unsigned long potCurrentMs;
+int potVal = 0;
+*/
 void setup() {
   uint8_t i, j, nBins, binNum, *data;
 
-  /*
-  FastLED.addLeds<WS2812B, LED_PIN, GRB>(leds, NUM_LEDS);
-  FastLED.setMaxPowerInVoltsAndMilliamps(5, 1500);
-  FastLED.setBrightness(BRIGHTNESS);
+  // Serial.begin(115200);
+  // Serial.println("Master is here");
 
-  FastLED.clear();
-  FastLED.show();
-  */
+  pinMode(13, OUTPUT);
 
   Wire.begin();
   
@@ -148,11 +138,7 @@ void setup() {
   sei(); // Enable interrupts
 }
 
-bool beat = false;
-
 void loop() {
-  // FastLED.clear();
-  
   uint8_t  i, x, L, *data, nBins, binNum, weighting, c;
   uint16_t minLvl, maxLvl;
   int      level, y, sum;
@@ -223,6 +209,13 @@ void loop() {
     */
   }
 
+  //Serial.println(peak[1]);
+  if(peak[1] > 8) {
+    digitalWrite(13, HIGH);
+  } else {
+    digitalWrite(13, LOW);
+  }
+  
   Wire.beginTransmission(1);
   Wire.write(peak, 8);
   Wire.endTransmission();
@@ -236,8 +229,6 @@ void loop() {
   }
 
   if(++colCount >= 10) colCount = 0;
-
-  // FastLED.show();
 }
 
 ISR(ADC_vect) { // Audio-sampling interrupt
