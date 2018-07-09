@@ -7,7 +7,7 @@ Sound-reactive RGB LED strips mounted under a portable sun umbrella.
 When attending big music festivals it's easy to lose your friends in the crowd so people sometimes use an umbrella, a flag or similar to spot each other easily. Some people get creative and make something custom, sometimes called a "festival totem". I was going to go to Fusion festival (outside of Berlin) with a big group of people and I was also looking for some kind of project to learn more about electronics and Arduino programming so this was a perfect opportunity to create something for me and my friends.
 
 #### Requirements
-- Light-weight (to be carried around and danced with for hours)
+- Light-weight and durable (to be carried around and danced with for hours)
 - Battery time of 3 hours
 - Final assembly on-site (We went to the festival by bus so I wanted to transport the bigger parts in the baggage compartment and the the delicate electronics with me on the passenger deck)
 
