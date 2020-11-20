@@ -12,7 +12,7 @@ When attending big music festivals it's easy to lose your friends in the crowd s
 - Final assembly on-site (We went to the festival by bus so I wanted to transport the bigger parts in the baggage compartment and the the delicate electronics with me on the passenger deck)
 
 #### Nice-to-have
-- Look cool af
+- Look cool
 - Reactive to sound
 - Battery time of 6 hours or more
 
